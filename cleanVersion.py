@@ -57,8 +57,8 @@ from collections import defaultdict
 from bing import bingimgs
 from shutil import copyfile
 
-""" open('names.txt', 'w').close()
-open('places.txt', 'w').close() """
+open('names.txt', 'w').close()
+open('places.txt', 'w').close()
 body=""
 dummy=[]
 dummy1=[]
@@ -230,7 +230,7 @@ def vconcat_resize_min(im_list, interpolation=cv2.INTER_CUBIC):
     return cv2.vconcat(im_list_resize)
 """
 
-def bodyselector(imgpath):
+def bodyselector(imgpath,genre):
     """ faceextract(imgpath,0)
     imgpath="facealone0.jpg" """
     age,gender=genage(imgpath)
@@ -245,10 +245,10 @@ def bodyselector(imgpath):
     if(gender=="M"):
         if(age<50 and race=="dimgray"):
             body="black40m.jpg"
-        elif(age<60):
-            body="white50m.jpg"
+        elif(age<50):
+            body=str(genre)+"/white40m.jpg"
         elif(age<70):
-            body="white60m.jpg"
+            body=str(genre)+"/white50m.jpg"
     return body
 """
 def concater():
@@ -263,7 +263,7 @@ def quotedtext(text):
     text1=text.splitlines()
     final=[]
     for t in text1:
-        print(t)
+        
         talk = re.findall(r'\"([^\"]+?)(\"|\-\-\n)',t)
         lst2 = [item[0] for item in talk]
         if(lst2):
@@ -371,7 +371,7 @@ def titlegen(text,temp):
     draw = ImageDraw.Draw(img)
     fnt = ImageFont.truetype("comic.ttf", 16)
     color = 'rgb(0, 0, 0)'
-    draw.text((x/2,10), message, font=fnt, fill=color)
+    draw.text((20,10), message, font=fnt, fill=color)
     img.save('comicstrip.png', quality=95)
     
 
@@ -379,12 +379,13 @@ def headline(text,img_path,flag):
     
     model = markovify.Text(text, state_size = 1)
     dictt={}
-    for i in range(20):
+    for i in range(100):
         temp = model.make_sentence()
         if temp is not None:
             l=len(temp.split())
             dictt[temp]=l
     message=min(dictt.items(), key=operator.itemgetter(1))[0]
+    
     print(message)
     img = Image.open(img_path)
     x, y = img.size
@@ -609,38 +610,48 @@ def finalcombiner(flag,fname,msg,bl,panel,f):
         background.save("comicstrip.png")
 
     nn="comicstrip.png"
-    im = cv2.imread(nn)
-    tmp = cv2.imread(bl,0)
+    average=[]
+    flagg=0
+    while(len(average)==0):
+        im = cv2.imread(nn)
+        tmp = cv2.imread(bl,0)
+        if(flagg==1):
+            tmp = cv2.imread("testbloon2.png",0)
+        if(flagg==2):
+            tmp = cv2.imread("testbloon3.png",0)
+        im_gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) 
+        w, h = tmp.shape[::-1] 
+        res = cv2.matchTemplate(im_gray,tmp,cv2.TM_CCOEFF_NORMED) 
 
-    im_gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) 
-    w, h = tmp.shape[::-1] 
-    res = cv2.matchTemplate(im_gray,tmp,cv2.TM_CCOEFF_NORMED) 
+        threshold = 0.7
+        loc = np.where( res >= threshold)  
+        coor=[]
+        
+        pts=[[0,50,300,525],[301,50,636,525],[652,50,927,525],[950,50,1270,525],[0,585,300,1000],[300,585,633,1000],[650,585,955,1000],[960,585,1276,1000]]
 
-    threshold = 0.7
-    loc = np.where( res >= threshold)  
-    coor=[]
-    
-    pts=[[0,50,300,525],[301,50,636,525],[652,50,927,525],[950,50,1270,525],[0,585,300,1000],[300,585,633,1000],[650,585,955,1000],[960,585,1276,1000]]
-
-    for pt in zip(*loc[::-1]): 
-    
-        coor.append(pt)
-    print(coor)
-    coor1=[]
-    for c in coor:
+        for pt in zip(*loc[::-1]): 
+        
+            coor.append(pt)
+        print(coor)
+        coor1=[]
         for c in coor:
-            if(c[0]>pts[f][0] and c[0]<pts[f][2] and c[1]>pts[f][1] and c[1]<pts[f][3]):
-                coor1.append(c)
+            for c in coor:
+                if(c[0]>pts[f][0] and c[0]<pts[f][2] and c[1]>pts[f][1] and c[1]<pts[f][3]):
+                    coor1.append(c)
+
+        average = [sum(x)/len(x) for x in zip(*coor1)]
+        flagg=flagg+1
+    print(average)
+    
 
     average = [sum(x)/len(x) for x in zip(*coor1)]
     print(average)
-
     topleftx = average[0]
     toplefty = average[1]
     
     
     #sqbl
-    if(len(msg)>100):
+    if(len(msg)>90 and flag==1):
         grid = Image.open("comicstrip.png")
         im = Image.open("sqballoon1.png")
         size=250,165
@@ -649,9 +660,19 @@ def finalcombiner(flag,fname,msg,bl,panel,f):
         im = Image.open("sqballoon1.png")
         grid.paste(im, (int(topleftx-55),int(toplefty-14)),im)
         grid.save("comicstrip.png")
+
+    if(len(msg)>75 and flag==0):
+        grid = Image.open("comicstrip.png")
+        im = Image.open("sqballoon.png")
+        size=250,165
+        im_resized = im.resize(size, Image.ANTIALIAS)
+        im_resized.save("sqballoon.png", "PNG")
+        im = Image.open("sqballoon.png")
+        grid.paste(im, (int(topleftx-60),int(toplefty-14)),im)
+        grid.save("comicstrip.png")
     
         
-    para = textwrap.wrap(msg, width=25)
+    para = textwrap.wrap(msg, width=24)
     
     im = Image.open(nn)
     draw = ImageDraw.Draw(im)
@@ -716,38 +737,33 @@ faceextract("michelle.jpg",0)
 faceextract("barack.jpg",1)
 body0=bodyselector("facealone0.jpg",0)
 body1=bodyselector("facealone1.jpg",1)"""
-
-text="""
-
-Trump said " I would never be excited about a crowd again" after his visit to India where he addressed a rally of over 1,00,000 people.During their 36-hour visit, President Trump and the first lady attended various events and visited two cities  Ahmedabad and Agra  besides the national capital of India. In over seven decades of its independent history, India's relationship with the United States have always been complicated. The Cold War dynamics and India's nuclear ambitions had dictated the individual leanings of both nations before the turn of the new millennium. But since his visit to India in 2000, economics has become the defining feature of the relationship. India's economic rise post-liberalisation and its unique position to counter-balance China's dominance in Asia places it in a favourable light from the US perspective. However, the complicated nature of the equation has not yet resolved itself. In fact, Donald Trump’s visit to India  despite all the bonhomie on display  came in the backdrop of some hot and cold trade-related negotiations between the two nations that are yet to fructify. Trump has been quite vocal about his stand with respect to Indian markets and has constantly bashed the country as the tariffs king. Modi told the rally that "US has a great leader, and they have a great love for the people of this country."
-
-Ms Trump had accompanied her father US President  on his first official visit to India. Ivanka Trump made the most of her time during her two-day visit to India and thanked the country in a heartfelt post on Insta on Wednesday. Along with her husband Jared Kushner, father US President and First Lady , Ivanka arrived in Ahmedabad on February 24 and departed the next day.
-
-After returning to the US from India, Ivanka shared a picture with Jared Kushner from her Taj Mahal visit, and said in the caption, Ivanka said  "Thank you, India!"   .The picture is a candid shot of Ivanka and Jared holding hands in the backdrop of the Taj Mahal.Jared said "A time well spent"
-
-The White House is warning that more Americans will die of the coronavirus as news emerged that a second man had succumbed to the disease on US soil. Still, top officials are scrambling to show they are on top of the situation as new cases spring up from coast-to-coast.
-Democratic presidential candidates, led by former Vice President Joe Biden, are ripping into President Donald Trump for politicizing the situation. The President, his son and his conservative media cheerleaders had earlier claimed that criticism of the administration's efforts represented an orchestrated political campaign to bring him down.Stirred by the virus, the political maelstrom gripping Washington intensified as the first two Americans perished from the coronavirus. Two men have now died from the disease in Washington state's King County. Both had underlying health issues, with one man in his 50s and the other was 70, officials said. 
-Trump said "Efforts are being taken"  but Joe Biden says as " No apt methods are being followed".
-
-The second issue with such an argument is that it focuses too much on trade for a very myopic view of the relationship. Trade is just one of the aspects of bilateral ties that prime minister Modi has aptly called "people-driven, people-centric and the most important partnership of the 21st Century."
-To make trade negotiations the touchstone of a relationship — that impacts various geopolitical corners of a rapidly changing post-Cold War order and works as a democratic bulwark against the rise of authoritarianism around the world — is a blinkered and self-limiting exercise.
-On the contrary, it can be argued that Trump’s maiden visit to India has resulted in substantive deliverables, though a comprehensive trade deal has remained elusive.
-Prime Minister Modi and President Trump recognized the increasing importance of the trade and investment dimension of the India-United States relationship, and the need for long-term trade stability that will benefit both the American and Indian economies. They agreed to promptly conclude the ongoing negotiations, which they hope can become phase one of a comprehensive bilateral trade agreement that reflects the true ambition and full potential of the bilateral commercial relations, advancing prosperity, investment, and job creation in both countries.
-Trump said "trade friction won’t be allowed to spill into other domains and harm the close strategic partnership."
+text = """ 
+The Centre has approved an indigenous antibody detection test for Covid-19 which will allow authorities to do surveillance testing to see how much of the population has been exposed to coronavirus infection. Once these antibody test kits are manufactured indigenously, it will reduce India’s dependence on countries like China for these kits.
+The indigenous test will eliminate the need for low-quality Chinese kits — recently, Indian Council of Medical Research had to return about 500,000 such kits after they malfunctioned, with variable results. According to official sources, the test was validated at two sites in "Mumbai and was found to have high sensitivity and specificity" said Uddhav Thackerey .  Mr Raut told reporters earlier on Sunday that "He expects so because he wants to dedicate most of his time to the ongoing fight against coronavirus,".
+On his first day in office after taking charge as the Mumbai municipal commissioner, Iqbal Singh Chahal asked officials to ramp up contact-tracing in slum pockets, implement isolation aggressively and move more high-risk contacts to institutional quarantine.
+After an on-spot assessment of arrangements in Dharavi . Chahal along with additional municipal commissioner Suresh Kakani spoke to G/north ward’s health staff involved in contact-tracing in the slum pockets. Chahal asked officials to classify Covid-19 patients into those from housing societies and slum pockets.
+“Classify the patients and if possible suggest home quarantine in cases where it’s possible” said Chahal. Suresh Kakani said "At the epicentre of the pandemic, the city has so far reported 12,142 cases and 462 deaths" .
+Researchers at the London School of Hygiene and Tropical Medicine stress that it is unclear how the mutations affects the virus, but since the changes arose independently in different countries they may help the virus spread more easily.
+The spike mutations are rare at the moment but Martin Hibberd, professor of emerging infectious diseases and a senior author on the study, said their emergence highlights the need for global surveillance of the virus so that more worrying changes are picked up fast. "This is exactly what we need to look out for" Hibberd said.BorisJohnson urged the country to take its first tentative steps out of lockdown this week in an address to the nation that was immediately condemned as being divisive, confusing and vague.
+In a speech from Downing Street, BorisJohnson said if the circumstances were right, schools in England and some shops might be able to open next month, and the government was “actively encouraging” people to return to work if they cannot do so from home.
+He also said more outdoor activity will be allowed in England from this Wednesday, including unlimited exercise, trips to beauty spots such as beaches and national parks, and sport such as angling, golf and tennis, as long as they are kept to household groups.He also said more outdoor activity will be allowed in England from this Wednesday, including unlimited exercise, trips to beauty spots such as beaches and national parks, and sport such as angling, golf and tennis, as long as they are kept to household groups.
+People will also be allowed to meet one other member of another household at a time outdoors, either while exercising or sitting down, according to government sources.
+BorisJohnson said he would only start reopening the economy if the pandemic is clearly under control, but his call for people to get back to their workplaces led to immediate condemnation from trade unions worried about the safety of their work.
+Keir Starmer said the prime minister “appears to be effectively telling millions of people to go back to work tomorrow” without the necessary guidance.
+“But we haven’t got the guidelines, and we don’t know how it’s going to work with public transport” BorisJohnson added. 
 
 """
 
-
-#print(genredetect(text))
 
 #text1=scrap1()
 
 
 text = text.replace('“','"').replace('”','"').replace("’","'")
 dialogues=list(flatten(quotedtext(text)))
-print(dialogues)
+print("\n\n".join(dialogues))
 
 temp=[]
+genre=[]
 
 initial=0
 for i in range(4):
@@ -756,22 +772,27 @@ for i in range(4):
     txt = text.replace("'s", "  ").replace(",", " ")
     part_text=txt[initial:loc1]
     temp.append(part_text)
+    
     nameandlocation(part_text)
     initial=loc1
+""" for i in range(4):
+    genre.append(genredetect(temp[i])) """
 
-""" titlegen(text,temp)
+print(genre)
+
+titlegen(text,temp)
 
 for i in range(4):
-    headline(temp[i],"comicstrip.png",i) """
+    headline(temp[i],"comicstrip.png",i)
 
-"""
-bingimgs("names.txt","person")
-bingimgs("places.txt","place")
- """
+
+""" bingimgs("names.txt","person")
+bingimgs("places.txt","place") """
+
 
 # image copy for repeated character
-""" 
-with open('names.txt', 'r') as file:
+
+""" with open('names.txt', 'r') as file:
     li=file.read().replace('\n', ' ')
 print(li)
 sentence= list(li.split(" ")) 
@@ -788,10 +809,17 @@ for k  in range(7):
     itr=itr+1
     j=itr """
 
+
 """ for i in range (8):
     strr="person"+str(i)+".jpg"
     print(strr)
-    body=bodyselector(strr)
+
+    if(i%2==0):
+        val=int(i/2)+1
+    else:
+        val=math.ceil(i/2)
+
+    body=bodyselector(strr,genre[val-1])
     cartoongenerator(strr,body,i)
     out="out"+str(i)+".jpg"
     j=i%2
